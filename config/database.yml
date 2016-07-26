@@ -1,0 +1,6 @@
+development: &dev
+  adapter: postgresql
+  database: spectro_development
+  username: calebkeene
+  password: 
+  host: localhost
