@@ -1,1 +1,12 @@
-%h3 Readings Page
+= javascript_include_tag 'https://cdnjs.cloudflare.com/ajax/libs/canvasjs/1.7.0/canvasjs.min.js'
+%body
+	.col-md-6
+		.container
+			.spectral-data#data-area{style: 'height: 500px; width: 1000px;;'}
+
+			.controls{style: 'margin-left: 50px; margin-bottom: 100px;'}
+				.col-md-10
+					= button_tag 'start auto-read', class: 'btn auto-read-toggle'
+					= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
+				.col-md-2
+					= button_tag 'get new read', class: 'btn get-reading-btn'

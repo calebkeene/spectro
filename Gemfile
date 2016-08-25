@@ -3,12 +3,18 @@ source 'https://rubygems.org'
 gem 'rails', '4.2.5'
 gem 'pg'
 
+gem 'serialport'
+gem "font-awesome-rails"
+
 gem 'sass-rails', '~> 5.0'
 gem 'bootstrap-sass'
 gem 'uglifier', '>= 1.3.0'
 gem 'coffee-rails', '~> 4.1.0'
 gem 'jquery-rails'
 gem 'haml'
+gem "d3-rails"
+gem 'responders'
+gem 'js-routes'
 # Turbolinks makes following links in your web application faster. Read more: https://github.com/rails/turbolinks
 gem 'turbolinks'
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
