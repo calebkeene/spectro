@@ -1,35 +1,37 @@
 $(document).ready(function(){
-		
+	
+	var busyReading = false;
 	var autoRun = false;
-	var async = setInterval(getData, 700);
+	var async = setInterval(getData, 100); //get ready to read every 100ms
 
 	function getData(force){
-		console.log('running getData');
-		console.log('autoRun ->'+autoRun);
-		console.log('force ->'+force);
-		if(exitImmediately(force)){ 
-			console.log('exiting');
+		
+		if(exitImmediately(force)){ //may not be required once finished flag added to ajax endpoint
 			return null; 
 		}
-		
-		if(autoRun || force==true){
-			//console.log('starting ajax request for data at:'+ printTime());
-			console.log('passed autoRun || force test')
+
+		// either run this from setInterval every 100ms (when autorun on), or manually trigger with force flag
+		if((autoRun || force==true) && !busyReading){
+			console.log('getting data');
+			console.log('busyReading -> '+busyReading);
+			busyReading = true;
+
 			$.ajax({
 				type: 'POST',
 				contentType: "application/json; charset=utf-8",
 				url: Routes.readings_path(),
 				dataType: 'json',
 				success: function (data) {
-				   redrawGraph(data, force);
+					console.log(data['message']);
+					busyReading = false;
+					redrawGraph(data, force);
 				},
-				error: function (result) {
-				   console.log('error getting data');
+				error: function (data) {
+					console.log(data['message']);
 				}
 			});
 		}
 	}
-
 
 	function redrawGraph(data, force){
 
@@ -43,8 +45,6 @@ $(document).ready(function(){
 					text: "CCD Read (TCD1304AP)",
 					fontSize: 25
 				},
-				//animationEnabled: true,
-				//animationDuration: 10,
 				axisX:{
 					labelFontSize: 15,
 					title: 'pixel number',
@@ -76,6 +76,15 @@ $(document).ready(function(){
 		}
 	}
 
+	function exitImmediately(force){ // extra safety interlock to prevent reading when it shouldn't
+		if(typeof(force) == 'undefined' && !autoRun){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
 	function printTime(){
 		var now = new Date();
 		hours = now.getHours();
@@ -87,25 +96,31 @@ $(document).ready(function(){
 		return String(hours)+':'+String(minutes)+':'+String(seconds)
 	}
 
-	function exitImmediately(force){
-		if(typeof(force) == 'undefined' && !autoRun){
-			return true;
-		}
-		else{
-			return false;
-		}
-	}
-
 	//click handlers
+	$('.connect-serial').click(function(){
+		$.ajax({
+			type: 'POST',
+			contentType: "application/json; charset=utf-8",
+			url: Routes.readings_connect_serial_path(),
+			dataType: 'json',
+			success: function (data) {
+				console.log(data['message']);
+				$('.startup-controls').hide();
+				$('.container').show();
+			},
+			error: function (data) {
+				console.log(data['message']);
+			}
+		});
+	});
+
+
 	$('.get-reading-btn').click(function(){
-		clearInterval(async);
-		console.log('clicked btn');
 		getData(true);
 	});
 
 	$('.auto-read-toggle').click(function(){
 		if(autoRun == true){
-			clearInterval(async);
 			$('.running-icon').hide();
 			$(this).text('start auto read');
 			$('.get-reading-btn').show(200);
@@ -115,7 +130,6 @@ $(document).ready(function(){
 			$('.running-icon').show();
 			$(this).text('stop auto read');	
 			$('.get-reading-btn').hide(200);
-			async = setInterval(getData, 700);
 			autoRun = true;
 		}
 	});

@@ -2,8 +2,8 @@ source 'https://rubygems.org'
 
 gem 'rails', '4.2.5'
 gem 'pg'
-
 gem 'serialport'
+#gem 'serialport', path: '/Users/caleb/workspace/ruby-serialport'
 gem "font-awesome-rails"
 
 gem 'sass-rails', '~> 5.0'
