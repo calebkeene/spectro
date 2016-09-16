@@ -2,7 +2,7 @@ $(document).ready(function(){
 	
 	var busyReading = false;
 	var autoRun = false;
-	var async = setInterval(getData, 100); //get ready to read every 100ms
+	var async = setInterval(getData, 10); //get ready to read every 5ms
 
 	function getData(force){
 		

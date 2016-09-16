@@ -7,11 +7,6 @@ class ReadingsController < ApplicationController
 
 	def create
 		ccd_read = get_reading
-		# increment = Math::PI/3800
-		# ccd_read = []
-		# for i in 1..3800 
-		# 	ccd_read << {x: i, y: Math.sin(i*increment)}
-		# end
 
 		if ccd_read.length == 3800
 			render json: {message: 'new ccd reading', data: ccd_read }, status: 200
@@ -29,12 +24,10 @@ class ReadingsController < ApplicationController
 		raise 'PORT NOT FOUND - please check' if port_str.length < 1
 		puts "serial_port=#{port_str}"
 
-		#baud_rate = 230400
 		baud_rate = 460800
 		data_bits = 8
 		stop_bits = 1
 		parity = SerialPort::NONE
-		#loop do
 		$serial_port = SerialPort.new(port_str, baud_rate, data_bits, stop_bits, parity)
 		sleep(1)
 		$serial_port.sync = true
@@ -48,24 +41,41 @@ class ReadingsController < ApplicationController
 		$serial_port.flush
 		curr_pixel = 1
 		data_set = []
+		bytes = []
 		finished = false
-		reads = 1
+		i = 0
+		
 		while !finished
 			$serial_port.write 'a'
-			if $serial_port.gets.chomp == 'S' # start
-				while serial_val = $serial_port.gets.chomp do
-					if serial_val == 'E' # end
-						finished = true
-						break
-					else
-						data_set << { x: curr_pixel, y: serial_val.to_i }
-						curr_pixel = curr_pixel + 1
-					end
+			if $serial_port.getbyte == 1 # start
+				while serial_val = $serial_port.getbyte do
+					bytes << serial_val
+					break if bytes.count == 7600
 				end
+				finished = true
 			end
 		end
-		data_set
-
+		while i < ((bytes.length) -1) do
+			str = "".encode(Encoding::ASCII_8BIT)
+			str << bytes[i]
+			str << bytes[i+1]
+			data_set << { x: curr_pixel, y: str.unpack("S")[0] }
+			curr_pixel = curr_pixel + 1
+			i = i + 2
+		end
+		puts 'running FFT'
+		vector = data_set.map { |el| el[:y] }
+		transformed_data =  fft( vector )
+		puts "finished FFT, vector length = #{transformed_data.length}"
+		return transformed_data
 	end
 
+	def fft(vec)
+	  return vec if vec.size <= 1
+	  evens_odds = vec.partition.with_index{|_,i| i.even?}
+	  evens, odds = evens_odds.map{|even_odd| fft(even_odd)*2} 
+	  evens.zip(odds).map.with_index do |(even, odd),i|
+	    even + odd * Math::E ** Complex(0, -2 * Math::PI * i / vec.size) if (even && odd)
+	  end
+	end
 end
