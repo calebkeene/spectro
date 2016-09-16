@@ -63,11 +63,12 @@ class ReadingsController < ApplicationController
 			curr_pixel = curr_pixel + 1
 			i = i + 2
 		end
-		puts 'running FFT'
-		vector = data_set.map { |el| el[:y] }
-		transformed_data =  fft( vector )
-		puts "finished FFT, vector length = #{transformed_data.length}"
-		return transformed_data
+		data_set
+		# puts 'running FFT'
+		# vector = data_set.map { |el| el[:y] }
+		# transformed_data =  fft( vector )
+		# puts "finished FFT, vector length = #{transformed_data.length}"
+		# return transformed_data
 	end
 
 	def fft(vec)

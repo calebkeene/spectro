@@ -22,9 +22,26 @@ $(document).ready(function(){
 				url: Routes.readings_path(),
 				dataType: 'json',
 				success: function (data) {
-					console.log(data['message']);
+
+					var amplitudes = data['data'].map( function(a) { return a.y; });
+					var transform = num.fft(amplitudes);
+					var zeroValueComplex = [0, 0];
+					// zero out complex values between 400 and 3596
+					// zero out symmetrically so we have components to cancel with on both sides
+					transform = transform.fill(zeroValueComplex, 500, 3596);
+					var inverseTransform = num.ifft(transform);
+
+					var reals = [];
+					// only go up to 3800 ( all the values after this are from zero padding)
+					for (i=0; i< 3800; i++){
+						var h = new Object();
+						h['x'] = (i+1);
+						h['y'] = inverseTransform[i][0];
+						reals.push(h)
+					}
+
 					busyReading = false;
-					redrawGraph(data, force);
+					redrawGraph(reals, force);
 				},
 				error: function (data) {
 					console.log(data['message']);
@@ -34,10 +51,10 @@ $(document).ready(function(){
 	}
 
 	function redrawGraph(data, force){
-
 		if(!exitImmediately(force)){
 			console.log('redrawing graph');
-			dataPoints = data['data'];
+			//dataPoints = data['data'];
+			dataPoints = data;
 			var chart = new CanvasJS.Chart("data-area",{
 				zoomEnabled: true,
 				zoomType: 'xy',
@@ -54,7 +71,7 @@ $(document).ready(function(){
 					minimum: 0,
 					maximum: 3800
 				},
-				axisY:{
+				axisY:{›
 					labelFontSize: 15,
 					title: 'digital value',
 					titleFontSize: 25,
@@ -95,6 +112,65 @@ $(document).ready(function(){
 
 		return String(hours)+':'+String(minutes)+':'+String(seconds)
 	}
+
+	// function cfft(amplitudes){
+	// 	var N = amplitudes.length;
+	// 	if( N <= 1 )
+	// 		console.log("ERROR: passing 0 length amplitudes array");
+	// 		return amplitudes;
+	 
+	// 	var hN = N / 2;
+	// 	var even = [];
+	// 	var odd = [];
+	// 	even.length = hN;
+	// 	odd.length = hN;
+	// 	for(var i = 0; i < hN; ++i)
+	// 	{
+	// 		even[i] = amplitudes[i*2];
+	// 		odd[i] = amplitudes[i*2+1];
+	// 	}
+	// 	even = cfft(even);
+	// 	odd = cfft(odd);
+	 
+	// 	var a = -2*Math.PI;
+	// 	for(var k = 0; k < hN; ++k)
+	// 	{
+	// 		if(!(even[k] instanceof Complex))
+	// 			even[k] = new Complex(even[k], 0);
+	// 		if(!(odd[k] instanceof Complex))
+	// 			odd[k] = new Complex(odd[k], 0);
+	// 		var p = k/N;
+	// 		var t = new Complex(0, a * p);
+	// 		t.cexp(t).mul(odd[k], t);
+	// 		amplitudes[k] = even[k].add(t, odd[k]);
+	// 		amplitudes[k + hN] = even[k].sub(t, even[k]);
+	// 	}
+	// 	return amplitudes;
+	// }
+
+	// function icfft(amplitudes){
+	// 	var N = amplitudes.length;
+	// 	var iN = 1 / N;
+	 
+	// 	//conjugate if imaginary part is not 0
+	// 	for(var i = 0 ; i < N; ++i)
+	// 		if(amplitudes[i] instanceof Complex)
+	// 			amplitudes[i].im = -amplitudes[i].im;
+	 
+	// 	//apply fourier transform
+	// 	amplitudes = cfft(amplitudes)
+	 
+	// 	for(var i = 0 ; i < N; ++i)
+	// 	{
+	// 		//conjugate again
+	// 		amplitudes[i].im = -amplitudes[i].im;
+	// 		//scale
+	// 		amplitudes[i].re *= iN;
+	// 		amplitudes[i].im *= iN;
+	// 	}
+	// 	return amplitudes;
+	// }
+
 
 	//click handlers
 	$('.connect-serial').click(function(){
