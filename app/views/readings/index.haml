@@ -9,9 +9,16 @@
 		.container{style: 'display: none;'}
 			.spectral-data#data-area{style: 'height: 500px; width: 1000px;'}
 
-			.running-controls{style: 'margin-left: 50px; margin-bottom: 100px;'}
-				.col-md-10
-					= button_tag 'start auto-read', class: 'btn btn-primary auto-read-toggle'
-					= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
-				.col-md-2
-					= button_tag 'get single read', class: 'btn btn-secondary get-reading-btn'
+			.running-controls{style: 'width: 100%; margin-left: 50px; margin-bottom: 100px;'}
+				.col-md-12
+					%table.table.table-bordered
+						%tbody
+							%tr
+								%td
+									= button_tag 'start auto-read', class: 'btn btn-primary auto-read-toggle'
+									= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
+								%td
+									= button_tag 'get single read', class: 'btn btn-secondary get-reading-btn'
+								%td
+									Change linear function
+					
