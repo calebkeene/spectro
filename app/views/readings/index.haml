@@ -1,24 +1,48 @@
 = javascript_include_tag 'http://www.nblackburn.ca/static/lib/num.js'
 %body
-	.col-md-12
-		.startup-controls.text-center
-			= button_tag(nil, class: 'connect-serial btn btn-success btn-lg', style: 'margin-top: 100px;') do
-				%span
-					Connect to Spectrometer
-					=fa_icon 'usb'
-		.container{style: 'display: none;'}
-			.spectral-data#data-area{style: 'height: 500px; width: 1000px;'}
+	.container{style: 'padding: 25px;'}
+		.col-md-10
+			.startup-controls.text-center
+				= button_tag(nil, class: 'connect-serial btn btn-success btn-lg', style: 'margin-top: 100px;') do
+					%span
+						Connect to Spectrometer
+						=fa_icon 'usb'
+			.container{style: 'display: none;'}
+				.spectral-data#data-area{style: 'height: 500px; width: 1000px;'}
 
-			.running-controls{style: 'width: 100%; margin-left: 50px; margin-bottom: 100px;'}
-				.col-md-12
-					%table.table.table-bordered
-						%tbody
-							%tr
-								%td
-									= button_tag 'start auto-read', class: 'btn btn-primary auto-read-toggle'
-									= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
-								%td
-									= button_tag 'get single read', class: 'btn btn-secondary get-reading-btn'
-								%td
-									Change linear function
-					
+				.running-controls{style: 'width: 100%; margin-left: 50px; margin-bottom: 100px;'}
+					%div{style: 'height: 40px; padding-left: 15px;'}
+						%p.running-icon{style: 'display: none;'}
+							%span
+								Reading...
+								= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
+					.col-md-10
+						%table.table.table-bordered
+							%tbody
+								%tr
+									%td
+										= button_tag 'start auto-read', class: 'btn btn-success auto-read-toggle'
+									%td
+										= button_tag 'get single read', class: 'btn btn-primary get-reading-btn'
+									%td
+										= button_tag 'Adjust linear function', class: 'btn adjust-quadratic-btn'
+										= button_tag 'Adjust pixel read range', class: 'btn adjust-pixel-range-btn'
+										= button_tag 'Disable FFT', class: 'btn disable-fft-btn'
+										%span.quadratic-calibration-fields{style: 'display: none;'}
+											λ =
+											= number_field_tag '', nil, class: 'intercept-field', style: 'max-width: 65px;'
+											*pixel_number +
+											= number_field_tag '', nil, class: 'slope-field', style: 'max-width: 65px;'
+											= button_tag 'done', class: 'btn btn-success finished-calibration-btn'
+										.pixel-range-calibration-fields{style: 'display: none;'}
+											%span
+												START_PIXEL:
+												= number_field_tag '', nil, min: 0, max: 1000, class: 'start-pixel-field'
+											%span
+												END_PIXEL
+												=number_field_tag '', nil, min: 2000, max: 3800, class: 'end-pixel-field'
+											= button_tag 'done', class: 'btn btn-success finished-calibration-btn'
+
+
+
+						

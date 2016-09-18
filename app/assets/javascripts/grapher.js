@@ -2,8 +2,15 @@ $(document).ready(function(){
 	
 	var SLOPE = 0.0941;
 	var INTERCEPT = 370.38
+	var START_PIXEL = 1;
+	var END_PIXEL = 3715;
+
+	var wavelengths = computeLookupTable();
+	populateCalibrationForms();
+
 	var busyReading = false;
 	var autoRun = false;
+	var fftEnabled = true;
 	var async = setInterval(getData, 10); //get ready to read every 5ms
 
 	function getData(force){
@@ -14,8 +21,6 @@ $(document).ready(function(){
 
 		// either run this from setInterval every 100ms (when autorun on), or manually trigger with force flag
 		if((autoRun || force==true) && !busyReading){
-			console.log('getting data');
-			console.log('busyReading -> '+busyReading);
 			busyReading = true;
 
 			$.ajax({
@@ -26,24 +31,32 @@ $(document).ready(function(){
 				success: function (data) {
 
 					var amplitudes = data['data'].map( function(a) { return a.y; });
-					var transform = num.fft(amplitudes);
-					var zeroValueComplex = [0, 0];
-					// zero out complex values between 400 and 3596
-					// zero out symmetrically so we have components to cancel with on both sides
-					transform = transform.fill(zeroValueComplex, 500, 3596);
-					var inverseTransform = num.ifft(transform);
+					var points = []
 
-					var reals = [];
-					// only go up to 3800 ( all the values after this are from zero padding)
-					for (i=0; i< 3800; i++){
-						var h = new Object();
-						h['x'] = ((i+1)*SLOPE + INTERCEPT);
-						h['y'] = inverseTransform[i][0];
-						reals.push(h)
+					if(fftEnabled){ // remove periodic noise in the frequency domain
+						var transform = num.fft(amplitudes);
+						var zeroValueComplex = [0, 0];
+						// zero out complex values between 400 and 3596
+						// zero out symmetrically so we have components to cancel with on both sides
+						transform = transform.fill(zeroValueComplex, 500, 3596);
+						var yVals = num.ifft(transform).map( function(a) { return a[0]; });
+
+					}
+					else{
+						yVals = data['data'].map( function(a) { return a.y; });
+		
 					}
 
+					for (i=0; i< wavelengths.length; i++){
+						var h = new Object();
+						h['x'] = wavelengths[i];
+						h['y'] = yVals[i]; // just use raw amplitude (no LPF applied)
+						points.push(h)
+					}
+
+
 					busyReading = false;
-					redrawGraph(reals, force);
+					redrawGraph(points, force);
 				},
 				error: function (data) {
 					console.log(data['message']);
@@ -52,10 +65,35 @@ $(document).ready(function(){
 		}
 	}
 
+	function populateCalibrationForms(){
+		$('.intercept-field').val(INTERCEPT);
+		$('.slope-field').val(SLOPE);
+		$('.start-pixel-field').val(START_PIXEL);
+		$('.end-pixel-field').val(END_PIXEL);
+	}
+
+	function computeLookupTable(){
+		wavelengths = [];
+		// drop the first 100 pixels (start at ~380nm)
+		// go to pixel 3715 (~720nm)
+		for(i=START_PIXEL; i< END_PIXEL; i++){
+			wavelengths.push((i+1)*SLOPE + INTERCEPT);
+		}
+		return wavelengths;
+	}
+
 	function redrawGraph(data, force){
 		if(!exitImmediately(force)){
-			console.log('redrawing graph');
-			dataPoints = data;
+			
+			if(data.length == 0){ // for drawing empty graph after first connecting to uC
+				dataPoints = [];
+				for(i=0; i< wavelengths.length; i++){
+					dataPoints.push({ x: wavelengths[i], y: 0 })
+				}
+			}
+			else{
+				dataPoints = data;
+			}
 			var chart = new CanvasJS.Chart("data-area",{
 				zoomEnabled: true,
 				zoomType: 'xy',
@@ -71,8 +109,8 @@ $(document).ready(function(){
 					labelAngle: 30,
 					// minimum: 0,
 					// maximum: 3800
-					minimum: 350,
-					maximum: 800
+					minimum: 370,
+					maximum: 750
 				},
 				axisY:{
 					labelFontSize: 15,
@@ -124,9 +162,9 @@ $(document).ready(function(){
 			url: Routes.readings_connect_serial_path(),
 			dataType: 'json',
 			success: function (data) {
-				console.log(data['message']);
 				$('.startup-controls').hide();
 				$('.container').show();
+				redrawGraph([], true);
 			},
 			error: function (data) {
 				console.log(data['message']);
@@ -153,5 +191,61 @@ $(document).ready(function(){
 			autoRun = true;
 		}
 	});
+
+	$('.adjust-quadratic-btn').click(function(){
+		hideConfigButtons();
+		$('.quadratic-calibration-fields').show();
+	});
+
+	$('.adjust-pixel-range-btn').click(function(){
+		hideConfigButtons();
+		$('.pixel-range-calibration-fields').show();
+	});
+
+	$('.finished-calibration-btn').click(function(){
+		$('.quadratic-calibration-fields').hide();
+		$('.pixel-range-calibration-fields').hide();
+		showConfigButtons();
+	});
+
+	$('.disable-fft-btn').click(function(){
+		if(fftEnabled){
+			$(this).text('Enable FFT');
+			fftEnabled = false;
+		}
+		else{
+			$(this).text('Disable FFT')
+			fftEnabled = true;
+		}
+	});
+
+	// user adjusting constants of operation
+	$('.slope-field').change(function(){
+		SLOPE = $(this).val();
+	});
+
+	$('.intercept-field').change(function(){
+		INTERCEPT = $(this).val();
+	});
+
+	$('.start-pixel-field').change(function(){
+		START_PIXEL = $(this).val();
+	});
+
+	$('.end-pixel-field').change(function(){
+		END_PIXEL = $(this).val();
+	});
+
+	function hideConfigButtons(){
+		$('.adjust-quadratic-btn').hide();
+		$('.disable-fft-btn').hide()
+		$('.adjust-pixel-range-btn').hide();
+	}
+
+	function showConfigButtons(){
+		$('.adjust-quadratic-btn').show();
+		$('.disable-fft-btn').show();
+		$('.adjust-pixel-range-btn').show();
+	}
 
 });

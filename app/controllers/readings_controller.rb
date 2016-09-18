@@ -59,16 +59,10 @@ class ReadingsController < ApplicationController
 			str = "".encode(Encoding::ASCII_8BIT)
 			str << bytes[i]
 			str << bytes[i+1]
-			data_set << { x: curr_pixel, y: str.unpack("S")[0] }
-			curr_pixel = curr_pixel + 1
+			data_set << { y: str.unpack("S")[0] }
 			i = i + 2
 		end
 		data_set
-		# puts 'running FFT'
-		# vector = data_set.map { |el| el[:y] }
-		# transformed_data =  fft( vector )
-		# puts "finished FFT, vector length = #{transformed_data.length}"
-		# return transformed_data
 	end
 
 	def fft(vec)
