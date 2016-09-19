@@ -266,11 +266,25 @@ $(document).ready(function(){
 	});
 
 	$('.start-pixel-field').change(function(){
-		START_PIXEL = parseInt($(this).val());
+		val = parseInt($(this).val());
+		if(val > END_PIXEL-500){
+			alert('ERROR: minimum number of pixels to read is 500');
+			$(this).val(START_PIXEL);
+		}
+		else{
+			START_PIXEL = val;
+		}
 	});
 
 	$('.end-pixel-field').change(function(){
-		END_PIXEL = parseInt($(this).val());
+		val = parseInt($(this).val());
+		if(val < START_PIXEL+500){
+			alert('ERROR: minimum number of pixels to read is 500');
+			$(this).val(END_PIXEL);
+		}
+		else{
+			END_PIXEL = val;
+		}
 	});
 
 	function hideConfigButtons(){

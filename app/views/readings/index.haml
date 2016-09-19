@@ -38,10 +38,10 @@
 										.pixel-range-calibration-fields{style: 'display: none;'}
 											%span
 												START_PIXEL:
-												= number_field_tag '', nil, min: 0, max: 1000, class: 'start-pixel-field'
+												= number_field_tag '', nil, min: 1, class: 'start-pixel-field'
 											%span
 												END_PIXEL
-												=number_field_tag '', nil, min: 2000, max: 3800, class: 'end-pixel-field'
+												=number_field_tag '', nil, max: 3800, class: 'end-pixel-field'
 											= button_tag 'done', class: 'btn btn-success finished-calibration-btn'
 
 
