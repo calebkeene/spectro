@@ -1,17 +1,22 @@
 $(document).ready(function(){
 	
-	var SLOPE = 0.0941;
-	var INTERCEPT = 370.38
+	// var SLOPE = 0.0941;
+	// var INTERCEPT = 370.38
+	var SLOPE = 0.0909; //calibrated 19/06/16
+	var INTERCEPT = 399.82;
 	var START_PIXEL = 1;
 	var END_PIXEL = 3715;
+	var USING_WAVELENGTH = true
 
-	var wavelengths = computeLookupTable();
+	var xVals = setXaxis();
 	populateCalibrationForms();
 
 	var busyReading = false;
 	var autoRun = false;
 	var fftEnabled = true;
-	var async = setInterval(getData, 10); //get ready to read every 5ms
+	var async = setInterval(getData, 10); //get ready to read every 10ms
+
+	var lastRead = [];
 
 	function getData(force){
 		
@@ -31,7 +36,8 @@ $(document).ready(function(){
 				success: function (data) {
 
 					var amplitudes = data['data'].map( function(a) { return a.y; });
-					var points = []
+					var points = [];
+					var yVals = [];
 
 					if(fftEnabled){ // remove periodic noise in the frequency domain
 						var transform = num.fft(amplitudes);
@@ -39,24 +45,24 @@ $(document).ready(function(){
 						// zero out complex values between 400 and 3596
 						// zero out symmetrically so we have components to cancel with on both sides
 						transform = transform.fill(zeroValueComplex, 500, 3596);
-						var yVals = num.ifft(transform).map( function(a) { return a[0]; });
+						yVals = num.ifft(transform).map( function(a) { return a[0]; });
 
 					}
-					else{
+					else{ // just use straight amplitudes
 						yVals = data['data'].map( function(a) { return a.y; });
-		
 					}
 
-					for (i=0; i< wavelengths.length; i++){
+					for (i=0; i< xVals.length; i++){
 						var h = new Object();
-						h['x'] = wavelengths[i];
+						h['x'] = xVals[i];
 						h['y'] = yVals[i]; // just use raw amplitude (no LPF applied)
 						points.push(h)
 					}
 
-
+					lastRead = points;
 					busyReading = false;
-					redrawGraph(points, force);
+					
+					redrawGraph(force);
 				},
 				error: function (data) {
 					console.log(data['message']);
@@ -72,28 +78,49 @@ $(document).ready(function(){
 		$('.end-pixel-field').val(END_PIXEL);
 	}
 
-	function computeLookupTable(){
-		wavelengths = [];
-		// drop the first 100 pixels (start at ~380nm)
-		// go to pixel 3715 (~720nm)
-		for(i=START_PIXEL; i< END_PIXEL; i++){
-			wavelengths.push((i+1)*SLOPE + INTERCEPT);
+	function setXaxis(){
+
+		vals = [];
+
+		if(USING_WAVELENGTH){
+
+			for(i=START_PIXEL; i< END_PIXEL; i++){
+				vals.push((i)*SLOPE + INTERCEPT);
+			}
 		}
-		return wavelengths;
+		else{
+			for(i=START_PIXEL; i< END_PIXEL; i++){
+				vals.push(i);
+			}
+		}
+		return vals;
 	}
 
-	function redrawGraph(data, force){
+	function rebuildXvals(){
+		for(i=0; i<lastRead.length; i++){
+			lastRead[i].x = xVals[i]; // redo x values of last reading
+		}
+	}
+
+	function redrawGraph(force){
 		if(!exitImmediately(force)){
-			
-			if(data.length == 0){ // for drawing empty graph after first connecting to uC
-				dataPoints = [];
-				for(i=0; i< wavelengths.length; i++){
-					dataPoints.push({ x: wavelengths[i], y: 0 })
+			if(lastRead.length == 0){ // for drawing empty graph after first connecting to uC
+				for(i=0; i< xVals.length; i++){
+					lastRead.push({ x: xVals[i], y: 0 })
 				}
 			}
-			else{
-				dataPoints = data;
+
+			if(USING_WAVELENGTH){
+				min =  370;
+				max = 750;
+				xLabel = 'Wavelength (nm)'
 			}
+			else{
+				min = START_PIXEL;
+				max = END_PIXEL;
+				xLabel = 'Pixel Number'
+			}
+
 			var chart = new CanvasJS.Chart("data-area",{
 				zoomEnabled: true,
 				zoomType: 'xy',
@@ -103,14 +130,12 @@ $(document).ready(function(){
 				},
 				axisX:{
 					labelFontSize: 15,
-					title: 'Wavelength',
+					title: xLabel,
 					titleFontSize: 25,
 					titleFontStyle: 'italic',
 					labelAngle: 30,
-					// minimum: 0,
-					// maximum: 3800
-					minimum: 370,
-					maximum: 750
+					minimum: min,
+					maximum: max
 				},
 				axisY:{
 					labelFontSize: 15,
@@ -125,7 +150,7 @@ $(document).ready(function(){
 					type: 'line',
 					color: '#0066ff',
 					lineThickness: 2,
-					dataPoints: dataPoints
+					dataPoints: lastRead
 				}
 				]
 			});
@@ -164,7 +189,7 @@ $(document).ready(function(){
 			success: function (data) {
 				$('.startup-controls').hide();
 				$('.container').show();
-				redrawGraph([], true);
+				redrawGraph(true);
 			},
 			error: function (data) {
 				console.log(data['message']);
@@ -203,8 +228,13 @@ $(document).ready(function(){
 	});
 
 	$('.finished-calibration-btn').click(function(){
+		if(USING_WAVELENGTH){
+			xVals = setXaxis(); // update with new slope and intercept
+			rebuildXvals();
+		}
 		$('.quadratic-calibration-fields').hide();
 		$('.pixel-range-calibration-fields').hide();
+		redrawGraph(true);
 		showConfigButtons();
 	});
 
@@ -219,33 +249,42 @@ $(document).ready(function(){
 		}
 	});
 
+	$('.toggle-x-axis-btn').click(function(){
+		USING_WAVELENGTH = !USING_WAVELENGTH;
+		xVals = setXaxis();
+		rebuildXvals();
+		redrawGraph(true);
+	});
+
 	// user adjusting constants of operation
 	$('.slope-field').change(function(){
-		SLOPE = $(this).val();
+		SLOPE = parseFloat($(this).val());
 	});
 
 	$('.intercept-field').change(function(){
-		INTERCEPT = $(this).val();
+		INTERCEPT = parseFloat($(this).val());
 	});
 
 	$('.start-pixel-field').change(function(){
-		START_PIXEL = $(this).val();
+		START_PIXEL = parseInt($(this).val());
 	});
 
 	$('.end-pixel-field').change(function(){
-		END_PIXEL = $(this).val();
+		END_PIXEL = parseInt($(this).val());
 	});
 
 	function hideConfigButtons(){
 		$('.adjust-quadratic-btn').hide();
 		$('.disable-fft-btn').hide()
 		$('.adjust-pixel-range-btn').hide();
+		$('.toggle-x-axis-btn').hide();
 	}
 
 	function showConfigButtons(){
 		$('.adjust-quadratic-btn').show();
 		$('.disable-fft-btn').show();
 		$('.adjust-pixel-range-btn').show();
+		$('.toggle-x-axis-btn').show();
 	}
 
 });

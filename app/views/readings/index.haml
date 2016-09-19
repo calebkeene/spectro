@@ -24,10 +24,11 @@
 										= button_tag 'start auto-read', class: 'btn btn-success auto-read-toggle'
 									%td
 										= button_tag 'get single read', class: 'btn btn-primary get-reading-btn'
-									%td
+									%td.text-center
 										= button_tag 'Adjust linear function', class: 'btn adjust-quadratic-btn'
 										= button_tag 'Adjust pixel read range', class: 'btn adjust-pixel-range-btn'
 										= button_tag 'Disable FFT', class: 'btn disable-fft-btn'
+										= button_tag 'Toggle x-axis', class: 'btn toggle-x-axis-btn'
 										%span.quadratic-calibration-fields{style: 'display: none;'}
 											λ =
 											= number_field_tag '', nil, class: 'intercept-field', style: 'max-width: 65px;'
