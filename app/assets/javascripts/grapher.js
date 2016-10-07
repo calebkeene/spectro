@@ -1,11 +1,10 @@
 $(document).ready(function(){
 	
-	// var SLOPE = 0.0941;
-	// var INTERCEPT = 370.38
-	var SLOPE = 0.0909; //calibrated 19/06/16
-	var INTERCEPT = 399.82;
+	var SLOPE = 0.1012;
+	var INTERCEPT = 381.42 // calibrated 07/10/16
 	var START_PIXEL = 1;
 	var END_PIXEL = 3715;
+	var EXPOSURE_TIME = 1; // default is 1ms
 	var USING_WAVELENGTH = true
 
 	var xVals = setXaxis();
@@ -18,7 +17,7 @@ $(document).ready(function(){
 
 	var lastRead = [];
 
-	function getData(force){
+	function getData(force, singleRead){
 		
 		if(exitImmediately(force)){ //may not be required once finished flag added to ajax endpoint
 			return null; 
@@ -26,13 +25,15 @@ $(document).ready(function(){
 
 		// either run this from setInterval every 100ms (when autorun on), or manually trigger with force flag
 		if((autoRun || force==true) && !busyReading){
+			
 			busyReading = true;
-
+			var single = singleRead || false;	
+			
 			$.ajax({
 				type: 'POST',
-				contentType: "application/json; charset=utf-8",
 				url: Routes.readings_path(),
-				dataType: 'json',
+				data: {single_read: single},
+
 				success: function (data) {
 
 					var amplitudes = data['data'].map( function(a) { return a.y; });
@@ -42,7 +43,7 @@ $(document).ready(function(){
 					if(fftEnabled){ // remove periodic noise in the frequency domain
 						var transform = num.fft(amplitudes);
 						var zeroValueComplex = [0, 0];
-						// zero out complex values between 400 and 3596
+						// zero out complex values between 400 (0+400) and 3596 (4096-400)
 						// zero out symmetrically so we have components to cancel with on both sides
 						transform = transform.fill(zeroValueComplex, 500, 3596);
 						yVals = num.ifft(transform).map( function(a) { return a[0]; });
@@ -168,18 +169,17 @@ $(document).ready(function(){
 		}
 	}
 
-	function printTime(){
-		var now = new Date();
-		hours = now.getHours();
-		minutes = now.getMinutes();
-		seconds = now.getSeconds();
-		if(minutes < 10){ minutes = '0'+String(minutes)}
-		if(seconds <10){seconds = '0'+String(seconds)}
-
-		return String(hours)+':'+String(minutes)+':'+String(seconds)
+	function adjustExposureTime(){
+		console.log('calling adjustExposureTime');
+		$.ajax({ 
+			type: 'POST',
+			url: Routes.readings_adjust_exposure_path(),
+			data: {exposure_time: EXPOSURE_TIME}
+		});
 	}
 
 	//click handlers
+
 	$('.connect-serial').click(function(){
 		$.ajax({
 			type: 'POST',
@@ -199,7 +199,7 @@ $(document).ready(function(){
 
 
 	$('.get-reading-btn').click(function(){
-		getData(true);
+		getData(true, true);
 	});
 
 	$('.auto-read-toggle').click(function(){
@@ -217,6 +217,11 @@ $(document).ready(function(){
 		}
 	});
 
+	$('.adjust-exposure-btn').click(function(){
+		hideConfigButtons();
+		$('.adjust-exposure-field').show();
+	});
+
 	$('.adjust-quadratic-btn').click(function(){
 		hideConfigButtons();
 		$('.quadratic-calibration-fields').show();
@@ -232,6 +237,7 @@ $(document).ready(function(){
 			xVals = setXaxis(); // update with new slope and intercept
 			rebuildXvals();
 		}
+		$('.adjust-exposure-field').hide();
 		$('.quadratic-calibration-fields').hide();
 		$('.pixel-range-calibration-fields').hide();
 		redrawGraph(true);
@@ -257,6 +263,13 @@ $(document).ready(function(){
 	});
 
 	// user adjusting constants of operation
+	$('.exposure-time-field').change(function(){
+		console.log('old EXPOSURE_TIME -> '+EXPOSURE_TIME);
+		EXPOSURE_TIME = parseInt($(this).val());
+		console.log('new EXPOSURE_TIME -> '+EXPOSURE_TIME);
+		adjustExposureTime();
+	});
+
 	$('.slope-field').change(function(){
 		SLOPE = parseFloat($(this).val());
 	});
@@ -288,6 +301,7 @@ $(document).ready(function(){
 	});
 
 	function hideConfigButtons(){
+		$('.adjust-exposure-btn').hide();
 		$('.adjust-quadratic-btn').hide();
 		$('.disable-fft-btn').hide()
 		$('.adjust-pixel-range-btn').hide();
@@ -295,6 +309,7 @@ $(document).ready(function(){
 	}
 
 	function showConfigButtons(){
+		$('.adjust-exposure-btn').show();
 		$('.adjust-quadratic-btn').show();
 		$('.disable-fft-btn').show();
 		$('.adjust-pixel-range-btn').show();

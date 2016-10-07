@@ -37,6 +37,37 @@ class ReadingsController < ApplicationController
 		end
 	end
 
+	def adjust_exposure
+		exposure_time = params[:exposure_time]
+		$serial_port.flush
+		finished = false
+		exposure = 0
+
+		while !finished
+			puts 'sending \'e\' to uC'
+			puts "finished -> #{finished}"
+			$serial_port.write 'e' # tell uC we're adjusting exposure 
+			0
+			if $serial_port.getbyte == 1
+				puts 'r
+
+
+				eceived response, sending exposure'
+				$serial_port.write(exposure_time)
+				while serial_val = $serial_port.getbyte do
+					puts 'in getbyte loop'
+					exposure = serial_val
+					if exposure > 0
+						puts 'exposure > 0, breaking from inner loop'
+						finished = true
+						break
+					end
+				end
+		 	end
+		end
+		puts "finished! set exposure to #{exposure}ms"
+	end
+
 	def get_reading
 		$serial_port.flush
 		curr_pixel = 1
@@ -46,7 +77,7 @@ class ReadingsController < ApplicationController
 		i = 0
 		
 		while !finished
-			$serial_port.write 'a'
+			$serial_port.write 'r' # get reading
 			if $serial_port.getbyte == 1 # start
 				while serial_val = $serial_port.getbyte do
 					bytes << serial_val
