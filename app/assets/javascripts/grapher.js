@@ -1,24 +1,25 @@
 $(document).ready(function(){
 	
-	var SLOPE = 0.1012;
-	var INTERCEPT = 381.42 // calibrated 07/10/16
-	var START_PIXEL = 1;
-	var END_PIXEL = 3715;
-	var EXPOSURE_TIME = 1; // default is 1ms
-	var USING_WAVELENGTH = true
 
-	var xVals = setXaxis();
+	var START_PIXEL = 1;
+	var END_PIXEL = 3700;
+	var EXPOSURE_TIME = 1; // default is 1ms
+	var usingWavelength = true
+
+	var pixels = createPixelsArray();
+	var wavelengths = createWavelengthsArray();
+
 	populateCalibrationForms();
 
 	var busyReading = false;
 	var autoRun = false;
 	var fftEnabled = true;
 	var async = setInterval(getData, 10); //get ready to read every 10ms
-
+	xVals = wavelengths;
 	var lastRead = [];
 
-	function getData(force, singleRead){
-		
+	function getData(force, singleRead){		
+
 		if(exitImmediately(force)){ //may not be required once finished flag added to ajax endpoint
 			return null; 
 		}
@@ -27,7 +28,8 @@ $(document).ready(function(){
 		if((autoRun || force==true) && !busyReading){
 			
 			busyReading = true;
-			var single = singleRead || false;	
+
+			var single = singleRead || false;
 			
 			$.ajax({
 				type: 'POST',
@@ -40,7 +42,7 @@ $(document).ready(function(){
 					var points = [];
 					var yVals = [];
 
-					if(fftEnabled){ // remove periodic noise in the frequency domain
+					if(fftEnabled){ // remove periodic noise with frequency domain band-stop filter
 						var transform = num.fft(amplitudes);
 						var zeroValueComplex = [0, 0];
 						// zero out complex values between 400 (0+400) and 3596 (4096-400)
@@ -73,28 +75,44 @@ $(document).ready(function(){
 	}
 
 	function populateCalibrationForms(){
-		$('.intercept-field').val(INTERCEPT);
-		$('.slope-field').val(SLOPE);
 		$('.start-pixel-field').val(START_PIXEL);
 		$('.end-pixel-field').val(END_PIXEL);
 	}
 
-	function setXaxis(){
+	function createPixelsArray(){
 
 		vals = [];
-
-		if(USING_WAVELENGTH){
-
-			for(i=START_PIXEL; i< END_PIXEL; i++){
-				vals.push((i)*SLOPE + INTERCEPT);
-			}
-		}
-		else{
-			for(i=START_PIXEL; i< END_PIXEL; i++){
-				vals.push(i);
-			}
+		for(i=START_PIXEL; i<=END_PIXEL; i++){
+			vals.push(i);
 		}
 		return vals;
+	}
+
+	function createWavelengthsArray(){
+		vals = [];
+
+		var a = 7e-10; 
+		var b =  -5e-6;
+		var c = 0.1053;
+
+	
+		for(x=START_PIXEL; x<= END_PIXEL; x++){ // 3rd order polynomial mapping pixel to wavelength
+			vals.push(
+				((a*(x**3))+(b*(x**2))+(c*x)+359.01)
+			);
+		}
+		return vals;
+	}
+
+	function toggleXaxis(){
+		usingWavelength = !usingWavelength;
+		if(usingWavelength){
+			xVals = wavelengths;
+		}
+		else{
+			xVals = pixels;
+		}
+		rebuildXvals();
 	}
 
 	function rebuildXvals(){
@@ -104,6 +122,7 @@ $(document).ready(function(){
 	}
 
 	function redrawGraph(force){
+
 		if(!exitImmediately(force)){
 			if(lastRead.length == 0){ // for drawing empty graph after first connecting to uC
 				for(i=0; i< xVals.length; i++){
@@ -111,10 +130,10 @@ $(document).ready(function(){
 				}
 			}
 
-			if(USING_WAVELENGTH){
-				min =  370;
-				max = 750;
-				xLabel = 'Wavelength (nm)'
+			if(usingWavelength){
+				min =  380;
+				max = 720;
+				xLabel = 'Wavelength [nm]'
 			}
 			else{
 				min = START_PIXEL;
@@ -170,13 +189,14 @@ $(document).ready(function(){
 	}
 
 	function adjustExposureTime(){
-		console.log('calling adjustExposureTime');
 		$.ajax({ 
 			type: 'POST',
 			url: Routes.readings_adjust_exposure_path(),
 			data: {exposure_time: EXPOSURE_TIME}
 		});
 	}
+
+	
 
 	//click handlers
 
@@ -222,23 +242,22 @@ $(document).ready(function(){
 		$('.adjust-exposure-field').show();
 	});
 
-	$('.adjust-quadratic-btn').click(function(){
-		hideConfigButtons();
-		$('.quadratic-calibration-fields').show();
-	});
-
 	$('.adjust-pixel-range-btn').click(function(){
 		hideConfigButtons();
 		$('.pixel-range-calibration-fields').show();
 	});
 
 	$('.finished-calibration-btn').click(function(){
-		if(USING_WAVELENGTH){
-			xVals = setXaxis(); // update with new slope and intercept
-			rebuildXvals();
+		if(usingWavelength){
+			xVals = wavelengths;
 		}
+		else{
+			xVals = pixels;
+		}	
+		rebuildXvals();
+
 		$('.adjust-exposure-field').hide();
-		$('.quadratic-calibration-fields').hide();
+		//$('.quadratic-calibration-fields').hide();
 		$('.pixel-range-calibration-fields').hide();
 		redrawGraph(true);
 		showConfigButtons();
@@ -256,9 +275,7 @@ $(document).ready(function(){
 	});
 
 	$('.toggle-x-axis-btn').click(function(){
-		USING_WAVELENGTH = !USING_WAVELENGTH;
-		xVals = setXaxis();
-		rebuildXvals();
+		toggleXaxis();
 		redrawGraph(true);
 	});
 
@@ -268,14 +285,6 @@ $(document).ready(function(){
 		EXPOSURE_TIME = parseInt($(this).val());
 		console.log('new EXPOSURE_TIME -> '+EXPOSURE_TIME);
 		adjustExposureTime();
-	});
-
-	$('.slope-field').change(function(){
-		SLOPE = parseFloat($(this).val());
-	});
-
-	$('.intercept-field').change(function(){
-		INTERCEPT = parseFloat($(this).val());
 	});
 
 	$('.start-pixel-field').change(function(){
@@ -302,7 +311,6 @@ $(document).ready(function(){
 
 	function hideConfigButtons(){
 		$('.adjust-exposure-btn').hide();
-		$('.adjust-quadratic-btn').hide();
 		$('.disable-fft-btn').hide()
 		$('.adjust-pixel-range-btn').hide();
 		$('.toggle-x-axis-btn').hide();
@@ -310,7 +318,6 @@ $(document).ready(function(){
 
 	function showConfigButtons(){
 		$('.adjust-exposure-btn').show();
-		$('.adjust-quadratic-btn').show();
 		$('.disable-fft-btn').show();
 		$('.adjust-pixel-range-btn').show();
 		$('.toggle-x-axis-btn').show();

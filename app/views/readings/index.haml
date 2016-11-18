@@ -1,4 +1,5 @@
 = javascript_include_tag 'http://www.nblackburn.ca/static/lib/num.js'
+/ include tag is to get JS math library for FFT
 %body
 	.container{style: 'padding: 25px;'}
 		.col-md-10
@@ -17,28 +18,22 @@
 								Reading...
 								= fa_icon 'spinner', class: 'running-icon fa-spin fa-2x', style: 'display: none;'
 					.col-md-10
-						%table.table.table-bordered
+						%table.table
 							%tbody
 								%tr
 									%td
 										= button_tag 'start auto-read', class: 'btn btn-success auto-read-toggle'
 									%td
 										= button_tag 'get single read', class: 'btn btn-primary get-reading-btn'
-									%td.text-center
-										= button_tag 'Exposure time', class: 'btn adjust-exposure-btn'
-										= button_tag 'Linear function', class: 'btn adjust-quadratic-btn'
-										= button_tag 'Pixel read range', class: 'btn adjust-pixel-range-btn'
-										= button_tag 'Disable FFT', class: 'btn disable-fft-btn'
-										= button_tag 'Toggle x-axis', class: 'btn toggle-x-axis-btn'
+									%td
+										= button_tag 'Exposure time', class: 'btn adjust-exposure-btn', style: 'margin: 5px;'
+										/ = button_tag 'Linear function', class: 'btn adjust-quadratic-btn', style: 'margin: 5px;'
+										= button_tag 'Pixel read range', class: 'btn adjust-pixel-range-btn', style: 'margin: 5px;'
+										= button_tag 'Toggle x-axis ', class: 'btn toggle-x-axis-btn', style: 'margin: 5px;'
+										= button_tag 'Disable FFT ', class: 'btn disable-fft-btn', style: 'margin: 5px;'
 										.adjust-exposure-field{style: 'display: none;'}
 											Exposure Time:
 											= number_field_tag '1', nil, min: 1, max: 1000, step: 1, class: 'exposure-time-field'
-											= button_tag 'done', class: 'btn btn-success finished-calibration-btn'
-										%span.quadratic-calibration-fields{style: 'display: none;'}
-											λ =
-											= number_field_tag '', nil, class: 'slope-field', style: 'max-width: 65px;'
-											*pixel_number +
-											= number_field_tag '', nil, class: 'intercept-field', style: 'max-width: 65px;'
 											= button_tag 'done', class: 'btn btn-success finished-calibration-btn'
 										.pixel-range-calibration-fields{style: 'display: none;'}
 											%span

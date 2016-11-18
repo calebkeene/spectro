@@ -1,8 +1,13 @@
 class ReadingsController < ApplicationController
+	
 	respond_to :html, :json
 
-	def index
+	WAVELENGTHS = *(1..3800).map{ |x| 
+		7e-10*(x**3)-5e-6*(x**2)+0.1053*x+359.01
+	}
 
+	def index
+		# just render index.haml
 	end
 
 	def create
@@ -49,20 +54,8 @@ class ReadingsController < ApplicationController
 			$serial_port.write 'e' # tell uC we're adjusting exposure 
 			0
 			if $serial_port.getbyte == 1
-				puts 'r
-
-
-				eceived response, sending exposure'
+				puts 'handshake complete, sending exposure time to uC'
 				$serial_port.write(exposure_time)
-				while serial_val = $serial_port.getbyte do
-					puts 'in getbyte loop'
-					exposure = serial_val
-					if exposure > 0
-						puts 'exposure > 0, breaking from inner loop'
-						finished = true
-						break
-					end
-				end
 		 	end
 		end
 		puts "finished! set exposure to #{exposure}ms"
@@ -90,18 +83,25 @@ class ReadingsController < ApplicationController
 			str = "".encode(Encoding::ASCII_8BIT)
 			str << bytes[i]
 			str << bytes[i+1]
-			data_set << { y: str.unpack("S")[0] }
+			data_set << { y: (str.unpack("S")[0] - 5300) } # 5300 is dark signal (signal with no light input)
 			i = i + 2
 		end
+
+		if params[:single_read] == 'true'
+			single_read_create_txt(data_set)
+		end
+		puts "val -> #{data_set.last[:y]}"
 		data_set
 	end
 
-	def fft(vec)
-	  return vec if vec.size <= 1
-	  evens_odds = vec.partition.with_index{|_,i| i.even?}
-	  evens, odds = evens_odds.map{|even_odd| fft(even_odd)*2} 
-	  evens.zip(odds).map.with_index do |(even, odd),i|
-	    even + odd * Math::E ** Complex(0, -2 * Math::PI * i / vec.size) if (even && odd)
-	  end
+	def single_read_create_txt(data_set)
+		data_dir = "#{`pwd`.chomp}/manual_reads"
+		Dir.mkdir(data_dir) unless File.exist?(data_dir)
+
+		puts "saving spectral read to #{data_dir}"
+		File.open("#{data_dir}/fluorescent_roomlights_20ms_fixed.txt", 'w') do |f|
+			data_set.each_with_index { |reading, i| f << WAVELENGTHS[i].to_s + " " + reading[:y].to_s + "\n" }
+		end
 	end
+
 end
